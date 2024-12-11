@@ -1,8 +1,11 @@
 import numpy as np 
 import pandas as pd
 import streamlit as st
-from datetime import datetime
 import os
+
+from datetime import datetime
+from io import BytesIO
+
 
 os.makedirs('./output', exist_ok=True)
 
@@ -16,12 +19,19 @@ def convert_df(df):
     return df.to_csv(index = False).encode('utf-8')
 
 @st.cache_data()
+def load_data(file_data):
+    try:
+        return pd.read_csv(file_data, parse_dates=['DiaCompra'])
+    except pd.errors.ParserError:
+        return pd.read_excel(file_data)
+
+@st.cache_data()
 def to_excel(df):
     output = BytesIO()
-    writer = pd.ExcelWriter(output , engine='xlsxwriter')
-    df.to_excel(writer, index = False , sheet_name = 'Sheet 1')
-    writer.save()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Sheet 1')
     processed_data = output.getvalue()
+    return processed_data
     
     return processed_data
 
@@ -80,9 +90,8 @@ def main():
 
         st.write("## Recência (R)")
 
-        df_compras = pd.read_csv(r"C:\Users\g_abi\OneDrive\Documentos\Data Science\Data Science EBAC\Módulo 31  - RFV Deploy\Atividade 1\input\dados_input 1.csv",
-
-                                parse_dates=['DiaCompra'])
+        df_compras = load_data(data_file1)
+        
 
         dia_atual = datetime(2021, 12, 9)
         st.write("Dia máximo na base de dados", dia_atual)
@@ -166,7 +175,15 @@ def main():
         df_RFV['acoes de marketing/crm'] = df_RFV['RFV_Score'].map(dict_acoes)
         st.write(df_RFV)
 
-        df_RFV.to_excel('./output/RFV.xlsx')
+        st.write("### Baixar a Tabela RFV em Excel")
+
+        excel_file = to_excel(df_RFV)
+        st.download_button(
+            label="📥 Baixar Excel",
+            data=excel_file,
+            file_name="RFV.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
 if __name__ == '__main__':
 	main()
